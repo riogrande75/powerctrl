@@ -25,12 +25,11 @@ openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
         die("Could not bind socket : [$errorcode] $errormsg \n");
     }
     echo "Socket bind OK \n";
-
-    //Hauptschleife
+    //MAIN
     while(1)
     {
         //Receive some data
-        $r = socket_recvfrom($sock, $byte, 512, 0, $remote_ip, $remote_port);
+        $r = socket_recvfrom($sock, $byte, 128, 0, $remote_ip, $remote_port);
         //Ausgabe des Buffers
         if($debug) echo "<<<HEX:".ascii2hex($byte)."\n";
         $remoteid = ascii2hex(substr($byte,0,1));
@@ -38,11 +37,11 @@ openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
         $register_hi = ascii2hex(substr($byte,2,1));
         $register_lo = ascii2hex(substr($byte,3,1));
         $ACTsdm630 = file($filename);
-        if(!$ACTsdm630) // file noch offen von sdm630WP
+        if(!$ACTsdm630) // file still open from another task
                 {
                 for($i=1;$i<10;$i++){
-                                if($debug) echo "***************************************Lesen aus ACTsdm630.txt Fehlgeschlagen********************************\n";
-                                //syslog(LOG_INFO, 'Lesen aus ACTsdm630.txt Fehlgeschlagen');
+                                if($debug) echo "***************************************Reading from ACTsdm630.txt failed********************************\n";
+                                //syslog(LOG_INFO, 'Reading from ACTsdm630.txt failed');
                                 usleep(33);
                                 $ACTsdm630 = file($filename);
                                 if($ACTsdm630) break;
@@ -53,23 +52,25 @@ openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
         $pow = substr($pow1,strlen($pow1)*-1,strlen($pow1)-4);
         if(!$pow) die;
         if($debug) echo "**** $pow W aus File gelesen\n";
-        if($pow < -6000 || $pow > 10000) echo "Problem: die gelesen Leistung ist ".$pow."\n";
+        if($pow < -6000 || $pow > 10000) echo "Problem: Power is too big with ".$pow."\n";
         $send = rawSingleHex($pow);
         $crc = modbus_crc(trim($remoteid).trim($funkt)."04".$send);
         $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc.$padding);
+//      $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc); // for some machines padding is not required
         if($debug) echo ">>>HEX:".ascii2hex($buf)."\n\n";
-        //Sende Rueckantwort
+        //Send reply
+        usleep(20000); //This is required for fast machines, sending answer too fast for modbus card/server
         socket_sendto($sock, $buf , 100 , 0 , $remote_ip , $remote_port);
         }
 socket_close($sock);
-// ENDE
-// Hex nach string conversation
+// END
+// Hex2string conversion
 function hex2str($hex) {
     $str = '';
     for($i=0;$i<strlen($hex);$i+=2) $str .= chr(hexdec(substr($hex,$i,2)));
     return $str;
 }
-//CRC16 Berechnung
+//CRC16 calculation
 function modbus_crc($modbus_msg){
         $crctab16 = [0X0000, 0XC0C1, 0XC181, 0X0140, 0XC301, 0X03C0, 0X0280, 0XC241,
                 0XC601, 0X06C0, 0X0780, 0XC741, 0X0500, 0XC5C1, 0XC481, 0X0440,
