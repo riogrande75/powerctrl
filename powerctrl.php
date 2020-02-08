@@ -42,11 +42,11 @@ openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
                 for($i=1;$i<10;$i++){
                                 if($debug) echo "***************************************Reading from ACTsdm630.txt failed********************************\n";
                                 //syslog(LOG_INFO, 'Reading from ACTsdm630.txt failed');
-                                usleep(33);
+                                usleep(333);
                                 $ACTsdm630 = file($filename);
                                 if($ACTsdm630) break;
                                 }
-                syslog(LOG_INFO, 'Lesen 10x Fehlgeschlagen');
+                syslog(LOG_INFO, 'Reading failed 10x!');
                 }
         $pow1 = substr($ACTsdm630[3],2);
         $pow = substr($pow1,strlen($pow1)*-1,strlen($pow1)-4);
