@@ -1,13 +1,19 @@
 #!/usr/bin/php
 <?php
-$debug = false;
-$filename = "/tmp/ACTsdm630.txt";
+$debug = 0;
+// Packet should arrive from ip 192.168.x.y (as set in the rs485/ip converter)
 $padding = "000000000000000000";
 $remoteid = "";
 openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
+//Reduce errors
+error_reporting(~E_WARNING);
+syslog(LOG_INFO,'POWERCTRL started!');
 
-   //Reduce errors
-    error_reporting(~E_WARNING);
+//open sh mem obj for reading actual values
+$sh_sdm6301 = shmop_open(0x6301, "a", 0, 0); // this shmop gets created by script sdm630poller!
+if (!$sh_sdm6301) {
+    syslog("Couldn't create shared memory segment");
+}
     //Create a UDP socket
     if(!($sock = socket_create(AF_INET, SOCK_DGRAM, 0)))
     {
@@ -25,46 +31,36 @@ openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
         die("Could not bind socket : [$errorcode] $errormsg \n");
     }
     echo "Socket bind OK \n";
+
     //MAIN
     while(1)
     {
         //Receive some data
-        $r = socket_recvfrom($sock, $byte, 128, 0, $remote_ip, $remote_port);
+        $r = socket_recvfrom($sock, $byte, 100, 0, $remote_ip, $remote_port);
         //Ausgabe des Buffers
         if($debug) echo "<<<HEX:".ascii2hex($byte)."\n";
         $remoteid = ascii2hex(substr($byte,0,1));
         $funkt =  ascii2hex(substr($byte,1,1));
         $register_hi = ascii2hex(substr($byte,2,1));
         $register_lo = ascii2hex(substr($byte,3,1));
-        $ACTsdm630 = file($filename);
-        if(!$ACTsdm630) // file still open from another task
-                {
-                for($i=1;$i<10;$i++){
-                                if($debug) echo "***************************************Reading from ACTsdm630.txt failed********************************\n";
-                                //syslog(LOG_INFO, 'Reading from ACTsdm630.txt failed');
-                                usleep(333);
-                                $ACTsdm630 = file($filename);
-                                if($ACTsdm630) break;
-                                }
-                syslog(LOG_INFO, 'Reading failed 10x!');
-                }
-        $pow1 = substr($ACTsdm630[3],2);
-        $pow = substr($pow1,strlen($pow1)*-1,strlen($pow1)-4);
-        if(!$pow) die;
-        if($debug) echo "**** $pow W aus File gelesen\n";
-        if($pow < -6000 || $pow > 10000) echo "Problem: Power is too big with ".$pow."\n";
+        if(substr($remoteid,0,2) != "01") continue; // ignore messages from inverters, react only on requests to SDM630
+        //Prepare for sending of power-data
+        $pow =   shmop_read($sh_sdm6301, 18, 6);
+        if($debug) echo "**** $pow W gelesen\n";
+        if($pow < -17000 || $pow > 20000) echo "Problem: power is out of specs ".$pow."\n"; // warnings only, values need to be set fitting your house
         $send = rawSingleHex($pow);
         $crc = modbus_crc(trim($remoteid).trim($funkt)."04".$send);
-        $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc.$padding);
-//      $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc); // for some machines padding is not required
-        if($debug) echo ">>>HEX:".ascii2hex($buf)."\n\n";
-        //Send reply
-        usleep(20000); //This is required for fast machines, sending answer too fast for modbus card/server
-        socket_sendto($sock, $buf , 100 , 0 , $remote_ip , $remote_port);
+        $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc); //without padding for x64 systems
+//      $buf=hex2ascii(trim($remoteid).trim($funkt)."04".$send.$crc.$padding); //with Padding for RPi systems
+        if($debug) echo ">>>HEX:".ascii2hex($buf).date("Y-m-d H:i:s")."\n";
+        //send reply
+        usleep(20000); 
+        socket_sendto($sock, $buf , strlen($buf), 0 , $remote_ip , $remote_port);
         }
 socket_close($sock);
-// END
-// Hex2string conversion
+// END of MAIN loop
+
+// HEX to STRING conversation
 function hex2str($hex) {
     $str = '';
     for($i=0;$i<strlen($hex);$i+=2) $str .= chr(hexdec(substr($hex,$i,2)));
