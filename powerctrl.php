@@ -24,7 +24,7 @@ if (!$sh_sdm6301) {
     }
     echo "Socket created \n";
     // Bind the source address
-    if( !socket_bind($sock, "192.168.1.1" , 8234) )
+    if( !socket_bind($sock, "192.168.1.1" , 8234) ) // local rcv socket of the machine
     {
         $errorcode = socket_last_error();
         $errormsg = socket_strerror($errorcode);
