@@ -3,7 +3,7 @@
 // Assuming SDM630 has modbus ID 1!!!
 $debug = 0;
 $runonx64=true; //script runs on x64 HW
-// Packet should arrive from 10.0.0.142
+// Packet should arrive here from 10.0.0.241 and port 8123 / for diagnosis call ( tshark -f "port 8123" ), pls adapt to fit your rs485-ip converter
 $padding = "000000000000000000";
 $remoteid = "";
 openlog('POWERCTRL', LOG_CONS | LOG_NDELAY | LOG_PID, LOG_USER | LOG_PERROR);
@@ -26,7 +26,7 @@ if (!$sh_sdm6301) {
     }
     echo "Socket created \n";
     // Bind the source address, local IP and receiver port
-    if( !socket_bind($sock, "10.0.0.2" , 8123) )
+    if( !socket_bind($sock, "10.0.0.2" , 8123) ) // IP of machine running this script
     {
         $errorcode = socket_last_error();
         $errormsg = socket_strerror($errorcode);
