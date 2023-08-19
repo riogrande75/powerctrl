@@ -7,3 +7,5 @@ The powermeter gets polled every second from another script (sdm630poller) and t
 
 So it is possible to use the powermeter's complete values in other programms too (e.g. a logger like meterN) and the user has the chance, to adjust/control power feed-in of the inverter.
 You also have the chance to use powermeters other than the SDM630 if you write it's values to the shmop.
+
+I added a new version for DEYE/SunSynk hybrid inverters, that answers requests for this kind of inverters.
