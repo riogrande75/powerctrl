@@ -14,7 +14,7 @@ syslog(LOG_INFO,'POWERCTRL started!');
 //open sh mem obj for reading actual values, need sdm630poller to work
 $sh_sdm6301 = shmop_open(0x6301, "a", 0, 0);
 if (!$sh_sdm6301) {
-    syslog("Couldn't create shared memory segment");
+    syslog(LOG_ERR,"Couldn't create shared memory segment");
 }
     //Create a UDP socket
     if(!($sock = socket_create(AF_INET, SOCK_DGRAM, 0)))
